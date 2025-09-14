@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Album Collage Maker</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="container">
+    <h1>Picture Collage Maker <span class="muted">— Simple</span></h1>
+    <p class="sub">Completely Offline. Everything stays on your machine.</p>
+  </header>
+
+  <main class="container">
+    <section class="toolbar">
+      <div class="controls">
+        <input id="imageInput" type="file" accept="image/*" multiple hidden />
+
+        <label>Rows
+          <select id="rowsSelect">
+            <option selected>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+            <option>6</option>
+            <option>7</option>
+            <option>8</option>
+          </select>
+        </label>
+
+        <label>Cols
+          <select id="colsSelect">
+            <option selected>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+            <option>6</option>
+            <option>7</option>
+            <option>8</option>
+          </select>
+        </label>
+
+        <button id="autofillBtn" class="btn">Autofill</button>
+        <button id="clearBtn" class="btn btn-ghost">Clear Grid</button>
+      </div>
+
+      <div class="right">
+        <span id="poolCount" class="muted">Pool: 0</span>
+        <button id="exportBtn" class="btn primary">Export PNG</button>
+      </div>
+    </section>
+
+    <div id="dropHint">Tip: Drop images anywhere on the grid</div>
+
+    <section id="gridWrap">
+      <div id="grid" class="grid" aria-label="collage grid"></div>
+    </section>
+
+    <section class="notes">
+      <details>
+        <summary>How it works (privacy)</summary>
+        <ul>
+          <li>Images are selected from your computer using the file picker or by dropping onto the grid.</li>
+          <li>They are displayed via <code>URL.createObjectURL</code> (local <code>blob:</code> URLs). No uploads.</li>
+          <li>Replacing/clearing cells revokes old object URLs to free memory.</li>
+          <li>Export renders the visible grid into an in-memory canvas and saves a PNG locally.</li>
+        </ul>
+      </details>
+    </section>
+  </main>
+
+  <footer class="container foot muted">
+    <span>Runs completely local — no network calls.</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
