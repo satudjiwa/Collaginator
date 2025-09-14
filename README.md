@@ -117,7 +117,3 @@ Currently the toolbar **Clear Grid** resets everything. If you want per‑tile c
 - Quick **size presets** (1080, 2048, 3000) next to Export size
 
 ---
-
-## 📄 License
-
-MIT — do anything you want; attribution appreciated.
