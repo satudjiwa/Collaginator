@@ -1,3 +1,29 @@
+const tg = window.Telegram?.WebApp || null;
+
+function applyTgTheme() {
+  if (!tg) return;
+  const p = tg.themeParams || {};
+  const r = document.documentElement.style;
+  if (p.bg_color)            r.setProperty('--tg-bg', p.bg_color);
+  if (p.secondary_bg_color)  r.setProperty('--tg-card', p.secondary_bg_color);
+  if (p.text_color)          r.setProperty('--tg-text', p.text_color);
+  if (p.hint_color)          r.setProperty('--tg-muted', p.hint_color);
+  if (p.button_color)        r.setProperty('--tg-accent', p.button_color);
+  try { tg.setHeaderColor(p.bg_color || 'secondary_bg_color'); } catch {}
+  try { tg.setBackgroundColor(p.bg_color || '#0f1115'); } catch {}
+}
+
+if (tg) {
+  tg.ready();
+  tg.expand();
+  applyTgTheme();
+  tg.onEvent('themeChanged', applyTgTheme);
+}
+
+function haptic(type = 'light') {
+  try { tg?.HapticFeedback?.impactOccurred(type); } catch {}
+}
+
 const localInput   = document.getElementById('imageInput');
 const gridEl       = document.getElementById('grid');
 const rowsSelect   = document.getElementById('rowsSelect');
@@ -241,6 +267,7 @@ gridEl.addEventListener('drop', (e) => {
 });
 
 autofillBtn.addEventListener('click', () => {
+  haptic();
   if (localPool.length === 0) {
     localInput.click(); return;
   }
@@ -261,6 +288,7 @@ autofillBtn.addEventListener('click', () => {
 });
 
 clearBtn.addEventListener('click', () => {
+  haptic('medium');
   gridURLs.forEach(revokeURL);
   gridURLs.clear();
   document.querySelectorAll('.cell img').forEach(img => {
@@ -275,53 +303,64 @@ clearBtn.addEventListener('click', () => {
 });
 
 exportBtn.addEventListener('click', async () => {
-  const tileSize = 600 / Math.max(rows, cols); // adaptive base
-  const size = Math.floor(tileSize);
-  const W = cols * size;
-  const H = rows * size;
+  haptic('medium');
+  const cellW = 1200; // width per column
+  const gap = Math.round(cellW * 0.03); // white gutter
+
+  // per-row height follows the average aspect ratio of the images in that row
+  const rowHeights = [];
+  for (let i = 0; i < rows; i++) {
+    const aspects = [];
+    for (let j = 0; j < cols; j++) {
+      const imgEl = document.querySelector(`#${keyFor(i, j)} img`);
+      if (imgEl && imgEl.naturalWidth) aspects.push(imgEl.naturalWidth / imgEl.naturalHeight);
+    }
+    // row height = tallest image fits exactly; other images are fit inside (contain)
+    const minAspect = aspects.length ? Math.min(...aspects) : 2 / 3;
+    const clamped = Math.min(Math.max(minAspect, 0.35), 2.2);
+    rowHeights.push(Math.round(cellW / clamped));
+  }
+
+  const W = cols * cellW + (cols + 1) * gap;
+  const H = rowHeights.reduce((a, b) => a + b, 0) + (rows + 1) * gap;
 
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
 
+  let y = gap;
   for (let i = 0; i < rows; i++) {
+    let x = gap;
+    const rowH = rowHeights[i];
     for (let j = 0; j < cols; j++) {
       const cellId = keyFor(i, j);
       const cell = document.getElementById(cellId);
       const imgEl = cell?.querySelector('img');
-      if (!imgEl || !imgEl.src || !imgEl.naturalWidth) continue;
-
-      const st = view.get(cellId) || { s: 1, tx: 0, ty: 0 };
-      const rect = cell.getBoundingClientRect();
-      const cw = rect.width, ch = rect.height;
-      const iw = imgEl.naturalWidth, ih = imgEl.naturalHeight;
-      const baseScale = Math.max(cw / iw, ch / ih);
-      const offsetX = (cw - iw * baseScale) / 2;
-      const offsetY = (ch - ih * baseScale) / 2;
-      const dx = j * size;
-      const dy = i * size;
-      const scaleToTile = size / cw;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(dx, dy, size, size);
-      ctx.clip();
-      ctx.setTransform(
-        st.s * baseScale * scaleToTile, 0,
-        0, st.s * baseScale * scaleToTile,
-        dx + (st.tx + offsetX * st.s) * scaleToTile,
-        dy + (st.ty + offsetY * st.s) * scaleToTile
-      );
-
-      ctx.drawImage(imgEl, 0, 0);
-      ctx.restore();
+      if (imgEl && imgEl.src && imgEl.naturalWidth) {
+        const iw = imgEl.naturalWidth, ih = imgEl.naturalHeight;
+        const scale = Math.min(cellW / iw, rowH / ih); // fit whole image (contain)
+        const dw = iw * scale, dh = ih * scale;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, cellW, rowH);
+        ctx.clip();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(x, y, cellW, rowH);
+        ctx.drawImage(imgEl, x + (cellW - dw) / 2, y + (rowH - dh) / 2, dw, dh);
+        ctx.restore();
+      }
+      x += cellW + gap;
     }
+    y += rowH + gap;
   }
 
   const link = document.createElement('a');
   link.download = `collage_${rows}x${cols}.png`;
   link.href = canvas.toDataURL('image/png');
   link.click();
+  try { tg?.HapticFeedback?.notificationOccurred('success'); } catch {}
 });
 
 function drawCover(ctx, img, dx, dy, dw, dh) {
